@@ -17,6 +17,8 @@ checkArgs () {
 
 mainScript() {
     # TODO
+    echo "Hello World from Bash-Watch-Changes by Pumbaa"
+    echo -e "PARAM: $PARAM\nREST_OF_PARAMS: $REST_OF_PARAMS"
 }
 
 checkArgs $*;

@@ -2,7 +2,7 @@
 
 set -e;
 
-WATCHED_FOLDERS="./"; # TODO param
+WATCHED_FOLDERS="./folder.tmp/"; # TODO param
 FSWATCH_PID_FILE="/tmp/fswatchPid.tmp";
 
 printHelp () {
@@ -88,12 +88,12 @@ checkFswatchInstalled () {
 # Only kill fswatch processes launched by this script
 killFswatchProcesses () {
     fswatchPids=`pidof fswatch` || true; # pidof return a non-zero code when it find no process
+    echo "fswatchPids: $fswatchPids"
     if [[ ! -z "$fswatchPids" ]]; then
         read -ra fswatchPids <<< $fswatchPids; # Transform string into an array
 
         tmpPids=($(cat $FSWATCH_PID_FILE));
-        echo > $FSWATCH_PID_FILE; # Empty the file
-        fswatchPids="";
+        echo "last temp BWC PIDs: $tmpPids"
 
         # Compare current fswatch processes pid with pid saved in the tmp file
         for tmpPid in "${tmpPids[@]}"; do
@@ -108,6 +108,7 @@ killFswatchProcesses () {
 
         # Stop this function if there is no match between current fswatch pid and pid saved in the tmp file
         if [ -z "$fswatchPids" ]; then
+            echo "No matches have been found, exiting"
             return 0;
         fi
 
@@ -115,7 +116,7 @@ killFswatchProcesses () {
         # kill the fswatch process and exit the script.
         if [ "$STOP_WATCH" = true ]; then
             kill -9 $fswatchPids;
-            echo "Processes killed";
+            echo "Processes killed (PID: $fswatchPids)";
             echo > $FSWATCH_PID_FILE; # Empty the file
             exit 0;
         else
@@ -125,7 +126,7 @@ killFswatchProcesses () {
         case $killYN in
             [Yy]* )
                 kill -9 $fswatchPids;
-                echo "Processes killed";
+                echo "Processes killed (PID: $fswatchPids)";
                 echo > $FSWATCH_PID_FILE; # Empty the file
                 ;;
 
