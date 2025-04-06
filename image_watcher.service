@@ -1,0 +1,11 @@
+[Unit]
+Description=Image Watcher Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/path/to/watch-image-in-folder.sh /path/to/watched/folder
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

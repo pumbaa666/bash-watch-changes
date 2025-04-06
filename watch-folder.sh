@@ -7,7 +7,7 @@ FSWATCH_PID_FILE="/tmp/fswatchPid.tmp";
 
 printHelp () {
     echo "Usage:";
-    echo "watch-config [OPTION]";
+    echo "$0 [OPTION]";
     echo;
     echo "Options:";
     echo -e " --no-hup, -n\t\tWatch folder in background, immune to hangups";
