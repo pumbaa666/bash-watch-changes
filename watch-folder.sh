@@ -1,45 +1,66 @@
 #!/bin/bash
-
 set -e;
 
-WATCHED_FOLDERS="./folder.tmp/"; # TODO param
 FSWATCH_PID_FILE="/tmp/fswatchPid.tmp";
+WATCHED_FOLDER=""; # To be set from args
+FSWATCH_EVENTS="Created,Updated";  # Default events
 
-printHelp () {
+help () {
     echo "Usage:";
-    echo "$0 [OPTION]";
+    echo "$0 [OPTION] folder-to-watch";
     echo;
     echo "Options:";
-    echo -e " --no-hup, -n\t\tWatch folder in background, immune to hangups";
-    echo -e " --stop-watch, -s\tKill fswatch processes launched by --no-hup";
-    echo -e " --help, -h\t\tPrint this help";
+    echo -e " --events=EVENTS       Comma-separated fswatch events (e.g. Created,Updated,Removed,Renamed)";
+    echo -e "                       All events are listed here : http://emcrisostomo.github.io/fswatch/doc/1.17.1/fswatch.pdf#23"
+    echo -e " --no-hup, -n          Watch folder in background, immune to hangups";
+    echo -e " --stop-watch, -s      Kill fswatch processes launched by --no-hup";
+    echo -e " --help, -h            Print this help";
+    exit 0;
 }
 
-# Check arguments
 checkArgs () {
-    while test $# -gt 0
-    do
-        case "$1" in
-            --no-hup) ;&
-            -n) NOHUP=true;
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --events=*)
+                #shift
+                if [[ -n "$1" ]]; then
+                    FSWATCH_EVENTS="${1#*=}"
+                else
+                    echo "Error: --events requires a comma-separated list of event names";
+                    exit 1
+                fi
                 ;;
-
-            --stop-watch) ;&                
-            -s)
-                STOP_WATCH=true;
-                ;;
-
-            --help) ;&
-            -h) printHelp;
-                exit 0;
-                ;;
-
-            *) >&2 echo "Invalid option '$1'";
-                printHelp;
-                exit 1;
+            --no-hup|-n)     NOHUP=true;;
+            --stop-watch|-s) STOP_WATCH=true;;
+            -h|--help)       help;;
+            -*)
+                echo "Unknown parameter: $1";
+                help;;
+            *)
+                if [[ -z "$WATCHED_FOLDER" ]]; then
+                    WATCHED_FOLDER="$1"
+                else
+                    echo "Multiple folders not supported. Already set to: $WATCHED_FOLDER";
+                    help;
+                fi
                 ;;
         esac
-        shift;
+        shift
+    done
+
+    if [[ -z "$WATCHED_FOLDER" && -z "$STOP_WATCH" ]]; then
+        echo "Error: Missing folder to watch.";
+        help;
+    fi
+}
+
+# Build fswatch event flags from comma-separated list
+buildFswatchArgs () {
+    local IFS=','
+    read -ra EVENTS <<< "$FSWATCH_EVENTS"
+    FSWATCH_ARGS=""
+    for evt in "${EVENTS[@]}"; do
+        FSWATCH_ARGS+=" --event $evt"
     done
 }
 
@@ -53,8 +74,8 @@ checkWorkingFolder () {
 # Test if watched folders exists
 # https://stackoverflow.com/questions/6363441/check-if-a-file-exists-with-wildcard-in-shell-script
 checkWatchedFolders () {
-    if ! ls $WATCHED_FOLDERS 1> /dev/null 2>&1; then
-        echo "$WATCHED_FOLDERS doesn't exist. Exiting";
+    if ! ls $WATCHED_FOLDER 1> /dev/null 2>&1; then
+        echo "$WATCHED_FOLDER doesn't exist. Exiting";
         exit 1;
     fi
 }
@@ -62,7 +83,7 @@ checkWatchedFolders () {
 # Pretty print list of watched folders
 printWatchedFolders () {
     echo "Watching : ";
-    for f in $WATCHED_FOLDERS
+    for f in $WATCHED_FOLDER
     do
         echo -e "\t$(readlink -f $f)"; # Print absolute location
     done
@@ -144,6 +165,7 @@ killFswatchProcesses () {
 NOHUP=false;
 STOP_WATCH=false;
 checkArgs $*;
+buildFswatchArgs;
 checkWorkingFolder;
 checkWatchedFolders;
 checkFswatchInstalled;
@@ -158,11 +180,11 @@ printWatchedFolders;
 
 # fswatch documentation : http://emcrisostomo.github.io/fswatch/doc/
 if [ "$NOHUP" = true ]; then
-    nohup fswatch -0r --event Created --event Updated -l 5 $WATCHED_FOLDERS | xargs -0I {} ./script.sh --no-hup {} &
+    nohup fswatch -0r $FSWATCH_ARGS -l 5 --format="%p %f" $WATCHED_FOLDER | xargs -0I {} ./script.sh {} &
     lastCommandPid=$(($! - 1)); # xargs is the last command. Fswatch id is the last minus one.
     echo $lastCommandPid >> $FSWATCH_PID_FILE;
     echo "fswatch PID : $lastCommandPid";
 else
-    fswatch -0r --event Created --event Updated -l 5 $WATCHED_FOLDERS | xargs -0I {} ./script.sh {};
+    fswatch -0r $FSWATCH_ARGS -l 5 --format="%p %f" $WATCHED_FOLDER | xargs -0I {} ./script.sh {};
     # Do not write the fswatch PID in the tmp file since the process will be terminated by a ctrl-c
 fi
