@@ -1,25 +1,31 @@
 #!/bin/bash
 
-# This script is meant to be invoqued by watch-config.sh when it detect a change in the folder it's watching.
+# This script is meant to be invoked by watch-folder.sh when it detects a change.
 
 set -e
 
-PARAM=""
-REST_OF_PARAMS=""
+FILE_CHANGED=""
+EVENT_TRIGGERED=""
+TIMESTAMP=""
+LOG_FILE="./logs/fswatch_events.log"
 
 checkArgs () {
-    if [ "$1" = "--param" ]; then
-        PARAM="$1";
-        shift;
-    fi
-    REST_OF_PARAMS="$@";
+    # TIMESTAMP=$(echo "$1" | awk '{print $1}')
+    EVENT_TRIGGERED=$(echo "$1" | awk '{print $1}')
+    FILE_CHANGED=$(echo "$1" | awk '{print $2}')
+}
+
+logEvents() {
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "$TIMESTAMP | ⚡ $EVENT_TRIGGERED | 📁 $FILE_CHANGED" >> "$LOG_FILE"
+    echo -e "Logged: ⚡ $EVENT_TRIGGERED on 📁 $FILE_CHANGED at $TIMESTAMP"
 }
 
 mainScript() {
-    # TODO
-    echo "Hello World from Bash-Watch-Changes by Pumbaa"
-    echo -e "PARAM: $PARAM\nREST_OF_PARAMS: $REST_OF_PARAMS"
+    # Implements your logic here
+    echo "coucou"
 }
 
-checkArgs $*;
+checkArgs "$@"
+logEvents
 mainScript
