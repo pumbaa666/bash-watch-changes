@@ -180,11 +180,11 @@ printWatchedFolders;
 
 # fswatch documentation : http://emcrisostomo.github.io/fswatch/doc/
 if [ "$NOHUP" = true ]; then
-    nohup fswatch -0r $FSWATCH_ARGS -l 5 --format="%p %f" $WATCHED_FOLDER | xargs -0I {} ./script.sh {} &
+    nohup fswatch -0r $FSWATCH_ARGS -l 5 --format="%f %p" $WATCHED_FOLDER | xargs -0I {} ./script.sh {} & # #%t %f %p to get timestamp
     lastCommandPid=$(($! - 1)); # xargs is the last command. Fswatch id is the last minus one.
     echo $lastCommandPid >> $FSWATCH_PID_FILE;
     echo "fswatch PID : $lastCommandPid";
 else
-    fswatch -0r $FSWATCH_ARGS -l 5 --format="%p %f" $WATCHED_FOLDER | xargs -0I {} ./script.sh {};
+    fswatch -0r $FSWATCH_ARGS -l 5 --format-time="" --format="%f %p" $WATCHED_FOLDER | xargs -0I {} ./script.sh {};
     # Do not write the fswatch PID in the tmp file since the process will be terminated by a ctrl-c
 fi
