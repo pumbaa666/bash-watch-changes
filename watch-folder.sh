@@ -4,6 +4,8 @@ set -e;
 FSWATCH_PID_FILE="/tmp/fswatchPid.tmp";
 WATCHED_FOLDER=""; # To be set from args
 FSWATCH_EVENTS="Created,Updated";  # Default events
+SCRIPT_TO_EXECUTE="resize-picture.sh"
+TARGET_SCRIPT=${SCRIPT_TO_EXECUTE}
 
 help () {
     echo "Usage:";
@@ -64,10 +66,13 @@ buildFswatchArgs () {
     done
 }
 
-checkWorkingFolder () {
-    if ! test -f "./script.sh"; then
-        echo >&2 "Please cd into the BWC root directory before running this script.";
-        exit 1;
+checkWorkingFolder() {
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    TARGET_SCRIPT="${SCRIPT_DIR}/${SCRIPT_TO_EXECUTE}"
+
+    if [[ ! -f "${TARGET_SCRIPT}" || ! -x "${TARGET_SCRIPT}" ]]; then
+        echo >&2 "The script '${SCRIPT_TO_EXECUTE}' does not exist or is not executable in '${SCRIPT_DIR}'"
+        exit 1
     fi
 }
 
@@ -180,11 +185,11 @@ printWatchedFolders;
 
 # fswatch documentation : http://emcrisostomo.github.io/fswatch/doc/
 if [ "$NOHUP" = true ]; then
-    nohup fswatch -0r $FSWATCH_ARGS -l 5 --format="%f %p" $WATCHED_FOLDER | xargs -0I {} ./script.sh {} & # #%t %f %p to get timestamp
+    nohup fswatch -0r $FSWATCH_ARGS -l 5 --format="%p" $WATCHED_FOLDER | xargs -0I {} ${TARGET_SCRIPT} {} & # #%t %f %p to get timestamp
     lastCommandPid=$(($! - 1)); # xargs is the last command. Fswatch id is the last minus one.
     echo $lastCommandPid >> $FSWATCH_PID_FILE;
     echo "fswatch PID : $lastCommandPid";
 else
-    fswatch -0r $FSWATCH_ARGS -l 5 --format-time="" --format="%f %p" $WATCHED_FOLDER | xargs -0I {} ./script.sh {};
+    fswatch -0r $FSWATCH_ARGS -l 5 --format-time="" --format="%p" $WATCHED_FOLDER | xargs -0I {} ${TARGET_SCRIPT} {};
     # Do not write the fswatch PID in the tmp file since the process will be terminated by a ctrl-c
 fi

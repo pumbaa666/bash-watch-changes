@@ -15,19 +15,11 @@
 
 DEBUG=true
 
-rootFolder="$1"
-tnFolder="$rootFolder/tn"
-
-imageAHRefRoot="$2"
-if [ -z "$imageAHRefRoot" ]; then
-  imageAHRefRoot="$rootFolder"
-fi
-tnimageAHRefRoot="$imageAHRefRoot/tn"
-
-# keeps track of all the processed images
-newPictures=""
-existingPictures=""
-
+#action="$1" # TODO en faire qqch
+picturePath="$1"
+pictureFileName=$(basename ${picturePath})
+rootFolder="$(cd "$(dirname "${picturePath}")" && pwd)"
+tnFolder="${rootFolder}/tn"
 
 # https://www.cyberciti.biz/tips/handling-filenames-with-spaces-in-bash.html
 # https://search.brave.com/search?q=bash+how+to+check+if+a+file+with+space+exist&source=desktop
@@ -35,69 +27,72 @@ existingPictures=""
 SAVEIFS=$IFS
 IFS=$(echo -en "\n\b")
 
-
-# loop through all pictures in the folder
-for pictureFileName in $(ls "$rootFolder"); do
-    # Check if the file exists
-    if [ ! -f "$rootFolder/$pictureFileName" ]; then
-        if $DEBUG; then
-            echo "Skipping $pictureFileName because it does not exist"
-        fi
-        continue
-    fi
-    
-    # Check if the file is a png or jpg
-    if [[ ! "$pictureFileName" =~ \.(png|jpg)$ ]]; then
-        if $DEBUG; then
-            echo "Skipping $pictureFileName because it is not a png or jpg"
-        fi
-        continue
-    fi
-    
-    # Check if the picture was already resized in the "tn" folder
-    if [ -f "$tnFolder/$pictureFileName" ]; then
-        if $DEBUG; then
-            echo "Skipping $pictureFileName because it already exists in the 'tn' folder"
-        fi
-        existingPictures=$existingPictures"<a href=\"$imageAHRefRoot/$pictureFileName\"><img src=\"$tnimageAHRefRoot/$pictureFileName\" /></a>\n"
-        continue
-    fi
-    
-    # Create the "tn" folder if it doesn't exist
+# Check if the file exists
+if [ ! -f "$picturePath" ]; then
     if $DEBUG; then
-        echo "Creating $tnFolder"
+        echo "Skipping $picturePath because it does not exist"
     fi
-    mkdir -p $tnFolder
-    
-    # Resize the picture
-    if $DEBUG; then
-        echo "Resizing $pictureFileName"
-    fi
-    convert $rootFolder/$pictureFileName -resize 800x600 $tnFolder/$pictureFileName # TODO size as a parameter
-    
-    # Check if the picture was resized successfully
-    if [ ! -f "$tnFolder/$pictureFileName" ]; then
-        echo "Failed to resize $pictureFileName"
-        continue
-    fi
-    
-    # Print the original and resized picture path embeded in HTML tags
-    newPictures=$newPictures"<a href=\"$imageAHRefRoot/$pictureFileName\"><img src=\"$tnimageAHRefRoot/$pictureFileName\" /></a>\n"
-done
-
-output=""
-
-# Print result
-if [ -n "$newPictures" ]; then
-    output=$output"\n\nNew pictures:\n$newPictures"
+    exit 1
 fi
 
-if [ -n "$existingPictures" ]; then
-    output=$output"\n\nExisting pictures:\n$existingPictures"
+# Check if the file is a png or jpg
+if [[ ! "$pictureFileName" =~ \.(png|jpg)$ ]]; then
+    if $DEBUG; then
+        echo "Skipping $pictureFileName because it is not a png or jpg"
+    fi
+    exit 1
 fi
 
-echo -e "\nDone !\n\n" $output
-echo $output > $rootFolder/resize-output.html
+# Check if this is already a tn picture, to avoid recursives resizing
+if [[ "$picturePath" =~ /tn/*$ ]]; then
+    if $DEBUG; then
+        echo "Skipping $pictureFileName because it is a thumbnail picture"
+    fi
+    exit 1
+fi
+
+# Check if the picture was already resized in the "tn" folder
+if [ -f "$tnFolder/$pictureFileName" ]; then
+    if $DEBUG; then
+        echo "Skipping $pictureFileName because it already exists in the 'tn' folder"
+    fi
+    exit 0
+fi
+
+# Create the "tn" folder if it doesn't exist
+if $DEBUG; then
+    echo "Creating $tnFolder"
+fi
+mkdir -p $tnFolder
+
+# Resize the picture
+if $DEBUG; then
+    echo "Resizing $pictureFileName"
+fi
+convert $rootFolder/$pictureFileName -resize 800x600 $tnFolder/$pictureFileName # TODO size as a parameter
+
+# Check if the picture was resized successfully
+if [ ! -f "$tnFolder/$pictureFileName" ]; then
+    echo "Failed to resize $pictureFileName"
+    exit 2
+fi
+
+# Print the original and resized picture path embeded in HTML tags
+# newPictures=$newPictures"<a href=\"$imageAHRefRoot/$pictureFileName\"><img src=\"$tnimageAHRefRoot/$pictureFileName\" /></a>\n"
+
+# output=""
+
+# # Print result
+# if [ -n "$newPictures" ]; then
+#     output=$output"\n\nNew pictures:\n$newPictures"
+# fi
+
+# if [ -n "$existingPictures" ]; then
+#     output=$output"\n\nExisting pictures:\n$existingPictures"
+# fi
+
+# echo -e "\nDone !\n\n" $output
+# echo $output > $rootFolder/resize-output.html
 
 # restore $IFS
 IFS=$SAVEIFS
